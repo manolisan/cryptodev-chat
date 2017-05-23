@@ -66,14 +66,10 @@ int main(int argc, char *argv[])
 	/* Be careful with buffer overruns, ensure NUL-termination */
 
 	/* To Check  1 read -> one char?? */
-	size_t cnt = 0;
-	do {
-	  n = read(0, buf + cnt, 1);
-		cnt ++;
-	} while(buf[cnt -1] != '\n');
-	buf[cnt] = '\0';
+	size_t cnt = read_line(buf);
+
 	/* Say something... */
-	if (insist_write(sd, buf, strlen(buf)) != strlen(buf)) {
+	if (insist_write(sd, buf, cnt) != cnt) {
 		perror("write");
 		exit(1);
 	}
