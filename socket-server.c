@@ -32,23 +32,6 @@ void toupper_buf(char *buf, size_t n)
 		buf[i] = toupper(buf[i]);
 }
 
-/* Insist until all of the data has been written */
-ssize_t insist_write(int fd, const void *buf, size_t cnt)
-{
-	ssize_t ret;
-	size_t orig_cnt = cnt;
-
-	while (cnt > 0) {
-	        ret = write(fd, buf, cnt);
-	        if (ret < 0)
-	                return ret;
-	        buf += ret;
-	        cnt -= ret;
-	}
-
-	return orig_cnt;
-}
-
 int main(void)
 {
 	char buf[100];
@@ -118,12 +101,7 @@ int main(void)
 				break;
 			}
 
-			size_t cnt = 0;
-			do {
-				n = read(0, buf + cnt, 1);
-				cnt ++;
-			} while(buf[cnt -1] != '\n');
-			buf[cnt] = '\0';
+			size_t cnt = read_line(buf);
 
 			if (insist_write(newsd, buf, cnt) != cnt) {
 				perror("write to remote peer failed");

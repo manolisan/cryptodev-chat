@@ -6,6 +6,9 @@
  * Vangelis Koukis <vkoukis@cslab.ece.ntua.gr>
  */
 
+ #include <ctype.h>
+ #include <sys/types.h>
+
 #ifndef _SOCKET_COMMON_H
 #define _SOCKET_COMMON_H
 
@@ -17,3 +20,6 @@
 
 #endif /* _SOCKET_COMMON_H */
 
+ssize_t insist_write(int fd, const void *buf, size_t cnt);
+
+size_t read_line(char * buf);
