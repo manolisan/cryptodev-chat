@@ -23,3 +23,7 @@
 ssize_t insist_write(int fd, const void *buf, size_t cnt);
 
 size_t read_line(char * buf);
+
+void read_and_send(char * buf, int sd);
+
+int get_and_print(char * buf, int sd);

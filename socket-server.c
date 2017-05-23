@@ -37,7 +37,6 @@ int main(void)
 	char buf[100];
 	char addrstr[INET_ADDRSTRLEN];
 	int sd, newsd;
-	ssize_t n;
 	socklen_t len;
 	struct sockaddr_in sa;
 
@@ -87,26 +86,9 @@ int main(void)
 
 		/* We break out of the loop when the remote peer goes away */
 		for (;;) {
-			n = read(newsd, buf, sizeof(buf));
-			if (n <= 0) {
-				if (n < 0)
-					perror("read from remote peer failed");
-				else
-					fprintf(stdout, "Peer went away\n");
-				break;
-			}
+			if (get_and_print(buf, newsd) == 1) break;
 
-			if (insist_write(1, buf, n) != n) {
-				perror("write to remote peer failed");
-				break;
-			}
-
-			size_t cnt = read_line(buf);
-
-			if (insist_write(newsd, buf, cnt) != cnt) {
-				perror("write to remote peer failed");
-				break;
-			}
+			read_and_send(buf, newsd);
 		}
 		/* Make sure we don't leak open files */
 		if (close(newsd) < 0)

@@ -26,7 +26,7 @@
 int main(int argc, char *argv[])
 {
 	int sd, port;
-	ssize_t n;
+
 	char buf[100];
 	char *hostname;
 	struct hostent *hp;
@@ -65,39 +65,11 @@ int main(int argc, char *argv[])
 
 	/* Be careful with buffer overruns, ensure NUL-termination */
 
-	/* To Check  1 read -> one char?? */
-	size_t cnt = read_line(buf);
-
-	/* Say something... */
-	if (insist_write(sd, buf, cnt) != cnt) {
-		perror("write");
-		exit(1);
-	}
-	fprintf(stdout, "I said:\n%s\nRemote says:\n", buf);
-	fflush(stdout);
-
-	/*
-	 * Let the remote know we're not going to write anything else.
-	 * Try removing the shutdown() call and see what happens.
-	 */
-
+	read_and_send(buf, sd);
 
 	/* Read answer and write it to standard output */
 	for (;;) {
-		n = read(sd, buf, sizeof(buf));
-
-		if (n < 0) {
-			perror("read");
-			exit(1);
-		}
-
-		if (n <= 0)
-			break;
-
-		if (insist_write(0, buf, n) != n) {
-			perror("write");
-			exit(1);
-		}
+		if (get_and_print(buf, sd) == 1) break;
 	}
 
 	fprintf(stderr, "\nDone.\n");
