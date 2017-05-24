@@ -99,39 +99,27 @@ void my_rlhandler(char* line)
 
 
 			// send the length of the message
-			uint32_t wlen = htonl(len + name_len + 2);
+			uint32_t wlen = htonl(len + name_len + 1);
 			if( insist_write(newsd, &wlen, sizeof(wlen)) != sizeof(wlen)){
 				perror("write");
 				exit(1);
 			}
 
 			// format messasge
-			char * full_message = malloc(len + name_len + 2); // 1 for a space, 1 for line changing and 1 for a \0
+			char * full_message = malloc(len + name_len + 1); // 1 for a space, 1 for line changing and 1 for a \0
  			strcpy(full_message, prompt);
- 			full_message[name_len] = ' ';
-			strcpy(full_message + name_len + 1, line);
- 			full_message[len +name_len + 1] = '\n';
+ 			//full_message[name_len] = ' ';
+			strcpy(full_message + name_len, line);
+ 			full_message[len +name_len] = '\n';
 			//full_message[len +name_len + 3] = '\0';
 
 
-			if(insist_write(newsd, full_message, len + name_len + 2) != len + name_len + 2){
+			if(insist_write(newsd, full_message, len + name_len + 1) != len + name_len + 1){
 				perror("write");
 				exit(1);
 			}
 			free(full_message);
 
-/*
-			// or just send the line!
-			if(insist_write(newsd, line, len) != len){
-				perror("write");
-				exit(1);
-			}
-*/
-
-			printf("\n");			//print one change line on each message send for readability
-			fflush(stdout);
-
     }
-
     free (line);
 }
