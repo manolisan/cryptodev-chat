@@ -21,6 +21,8 @@
 
 #endif /* _SOCKET_COMMON_H */
 
+#define BUFF_SIZE 100
+
 extern int newsd;
 extern char prompt[100];
 

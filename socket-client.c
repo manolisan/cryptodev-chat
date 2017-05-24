@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
 	rl_callback_handler_install(&prompt, (rl_vcpfunc_t*) &my_rlhandler);
 
 	fd_set fds;
-
+	
 	for (;;) {
 		FD_ZERO(&fds);
 		FD_SET(newsd, &fds);

@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 
@@ -26,20 +27,41 @@ ssize_t insist_write(int fd, const void *buf, size_t cnt)
 	return orig_cnt;
 }
 
+ssize_t insist_read(int fd, char *buf, size_t cnt)
+{
+	ssize_t ret;
+	size_t orig_cnt = cnt;
+	int i;
+
+	while (cnt > 0) {
+	        ret = read(fd, buf, cnt);
+	        if (ret < 0){
+	            return ret;
+					}
+					buf += ret;
+	        cnt -= ret;
+	}
+	return orig_cnt;
+}
+
 int get_and_print(char * buf, int sd){
 	/// sizeof buf??? when o put the change of line?
-  ssize_t n = read(sd, buf, sizeof(buf));
+	uint32_t size;
+	insist_read(sd, &size, sizeof(size));
+
+  uint32_t mes_size = ntohl(size);
+	ssize_t n = insist_read(sd, buf, mes_size);
 
   if (n < 0) {
     perror("read");
     exit(1);
   }
-
 	//printf("Received %d bytes:\n", n);
 
   //If reached EOF, return 1.
   if (n <= 0)
     return 1;
+
 
 	int saved_point = rl_point;
 	char *saved_line = rl_copy_text(0, rl_end);
@@ -48,12 +70,13 @@ int get_and_print(char * buf, int sd){
 	rl_redisplay();
 
 
-	/* Write message to stdout */
+	// Write message to stdout
   if (insist_write(0, buf, n) != n) {
     perror("write");
     exit(1);
   }
 	//printf("\n");
+
 
 	rl_restore_prompt();
 	rl_replace_line(saved_line, 0);
@@ -75,6 +98,12 @@ void my_rlhandler(char* line)
       add_history(line);
 
 
+			// send the length of the message
+			uint32_t wlen = htonl(len + name_len + 2);
+			if( insist_write(newsd, &wlen, sizeof(wlen)) != sizeof(wlen)){
+				perror("write");
+				exit(1);
+			}
 
 			// format messasge
 			char * full_message = malloc(len + name_len + 2); // 1 for a space, 1 for line changing and 1 for a \0

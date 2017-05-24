@@ -33,7 +33,7 @@ int  newsd;
 
 int main(void)
 {
-	char buf[100];
+	char buf[BUFF_SIZE];
 	char addrstr[INET_ADDRSTRLEN];
 	int sd;
 	socklen_t len;
@@ -89,7 +89,7 @@ int main(void)
 		rl_callback_handler_install(prompt, (rl_vcpfunc_t*) &my_rlhandler);
 
 		fd_set fds;
-
+		
 		for (;;) {
 			FD_ZERO(&fds);
 			FD_SET(newsd, &fds);

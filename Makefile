@@ -26,10 +26,10 @@ socket-client: socket-client.o socket-common.o
 socket-server: socket-server.o socket-common.o
 	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
 
-socket-server.o: socket-server.c socket-common.h
+socket-server.o: socket-server.c
 	$(CC) $(CFLAGS) -c $^
 
-socket-client.o: socket-client.c socket-common.h
+socket-client.o: socket-client.c
 		$(CC) $(CFLAGS) -c $^
 
 socket-common.o: socket-common.c
