@@ -11,24 +11,28 @@ CC = gcc
 
 CFLAGS = -Wall
 CFLAGS += -g
+
+#DLFLAGS = -L/usr/local/lib
+#DLFLAGS += -I/usr/local/include
+#DLFLAGS += -lreadline
 # CFLAGS += -O2 -fomit-frame-pointer -finline-functions
 
-LIBS =
+LIBS = -lreadline
 
-BINS = socket-server socket-client
+BINS = socket-client socket-server
 
 all: $(BINS)
 
-socket-server: socket-server.o socket-common.h socket-common.o
-	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+socket-client: socket-client.o socket-common.o
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
 
-socket-client: socket-client.c socket-common.h socket-common.o
-	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+socket-server: socket-server.o socket-common.o
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
 
-socket-server.o: socket-server.c
+socket-server.o: socket-server.c socket-common.h
 	$(CC) $(CFLAGS) -c $^
 
-socket-client.o: socket-client.c
+socket-client.o: socket-client.c socket-common.h
 		$(CC) $(CFLAGS) -c $^
 
 socket-common.o: socket-common.c

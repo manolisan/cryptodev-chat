@@ -21,10 +21,17 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#include <readline/readline.h>
+#include <readline/history.h>
+
 #include "socket-common.h"
+
+int newsd;
 
 int main(int argc, char *argv[])
 {
+
+
 	int sd, port;
 
 	char buf[100];
@@ -45,6 +52,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	fprintf(stderr, "Created TCP socket\n");
+	newsd = sd;
 
 	/* Look up remote hostname on DNS */
 	if ( !(hp = gethostbyname(hostname))) {
@@ -65,12 +73,20 @@ int main(int argc, char *argv[])
 
 	/* Be careful with buffer overruns, ensure NUL-termination */
 
-	read_and_send(buf, sd);
+	rl_callback_handler_install("Stratis> ", (rl_vcpfunc_t*) &my_rlhandler);
 
+	//read_and_send(buf, sd);
 	/* Read answer and write it to standard output */
 	for (;;) {
-		if (get_and_print(buf, sd) == 1) break;
+		rl_callback_read_char();
+		//printf("read_ok_okokkokokok\n");
+		//fflush(stdout);
+
 	}
+	//if (get_and_print(buf, sd) == 1) break;
+
+
+	 rl_callback_handler_remove();
 
 	fprintf(stderr, "\nDone.\n");
 	return 0;

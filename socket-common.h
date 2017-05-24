@@ -5,9 +5,10 @@
  *
  * Vangelis Koukis <vkoukis@cslab.ece.ntua.gr>
  */
-
  #include <ctype.h>
  #include <sys/types.h>
+ #include <readline/readline.h>
+ #include <readline/history.h>
 
 #ifndef _SOCKET_COMMON_H
 #define _SOCKET_COMMON_H
@@ -20,6 +21,8 @@
 
 #endif /* _SOCKET_COMMON_H */
 
+extern int newsd;
+
 ssize_t insist_write(int fd, const void *buf, size_t cnt);
 
 size_t read_line(char * buf);
@@ -27,3 +30,5 @@ size_t read_line(char * buf);
 void read_and_send(char * buf, int sd);
 
 int get_and_print(char * buf, int sd);
+
+void my_rlhandler(char* line);

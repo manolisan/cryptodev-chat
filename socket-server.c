@@ -21,22 +21,18 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#include <readline/readline.h>
+#include <readline/history.h>
+
 #include "socket-common.h"
 
-/* Convert a buffer to upercase */
-void toupper_buf(char *buf, size_t n)
-{
-	size_t i;
-
-	for (i = 0; i < n; i++)
-		buf[i] = toupper(buf[i]);
-}
+int  newsd;
 
 int main(void)
 {
 	char buf[100];
 	char addrstr[INET_ADDRSTRLEN];
-	int sd, newsd;
+	int sd;
 	socklen_t len;
 	struct sockaddr_in sa;
 
@@ -66,6 +62,7 @@ int main(void)
 		perror("listen");
 		exit(1);
 	}
+	rl_callback_handler_install("Manolis> ", (rl_vcpfunc_t*) &my_rlhandler);
 
 	/* Loop forever, accept()ing connections */
 	for (;;) {
@@ -86,14 +83,16 @@ int main(void)
 
 		/* We break out of the loop when the remote peer goes away */
 		for (;;) {
+			rl_callback_read_char();
+		
 			if (get_and_print(buf, newsd) == 1) break;
-
-			read_and_send(buf, newsd);
+			//read_and_send(buf, newsd);
 		}
 		/* Make sure we don't leak open files */
 		if (close(newsd) < 0)
 			perror("close");
 	}
+	 rl_callback_handler_remove();
 
 	/* This will never happen */
 	return 1;
