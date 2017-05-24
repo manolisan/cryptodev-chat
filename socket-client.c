@@ -82,7 +82,6 @@ int main(int argc, char *argv[])
 
 	fd_set fds;
 
-
 	for (;;) {
 		FD_ZERO(&fds);
 		FD_SET(newsd, &fds);

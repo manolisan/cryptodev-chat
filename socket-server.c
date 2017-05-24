@@ -80,7 +80,7 @@ int main(void)
 			perror("could not format IP address");
 			exit(1);
 		}
-		fprintf(stderr, "Inc`oming connection from %s:%d\n",
+		fprintf(stderr, "Incoming connection from %s:%d\n",
 			addrstr, ntohs(sa.sin_port));
 
 

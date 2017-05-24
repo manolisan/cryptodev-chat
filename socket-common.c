@@ -35,7 +35,7 @@ int get_and_print(char * buf, int sd){
     exit(1);
   }
 
-	printf("Received %d bytes:\n", n);
+	//printf("Received %d bytes:\n", n);
 
   //If reached EOF, return 1.
   if (n <= 0)

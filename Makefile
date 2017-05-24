@@ -12,9 +12,6 @@ CC = gcc
 CFLAGS = -Wall
 CFLAGS += -g
 
-#DLFLAGS = -L/usr/local/lib
-#DLFLAGS += -I/usr/local/include
-#DLFLAGS += -lreadline
 # CFLAGS += -O2 -fomit-frame-pointer -finline-functions
 
 LIBS = -lreadline
