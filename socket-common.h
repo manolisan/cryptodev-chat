@@ -22,6 +22,7 @@
 #endif /* _SOCKET_COMMON_H */
 
 extern int newsd;
+extern char prompt[100];
 
 ssize_t insist_write(int fd, const void *buf, size_t cnt);
 

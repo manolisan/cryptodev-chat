@@ -21,11 +21,14 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#include <sys/select.h>
+
 #include <readline/readline.h>
 #include <readline/history.h>
 
 #include "socket-common.h"
 
+char prompt[100];
 int  newsd;
 
 int main(void)
@@ -62,7 +65,6 @@ int main(void)
 		perror("listen");
 		exit(1);
 	}
-	rl_callback_handler_install("Manolis> ", (rl_vcpfunc_t*) &my_rlhandler);
 
 	/* Loop forever, accept()ing connections */
 	for (;;) {
@@ -81,13 +83,33 @@ int main(void)
 		fprintf(stderr, "Inc`oming connection from %s:%d\n",
 			addrstr, ntohs(sa.sin_port));
 
-		/* We break out of the loop when the remote peer goes away */
+
+			printf("Please enter your prompt: ");
+			scanf("%s", &prompt);
+		rl_callback_handler_install(prompt, (rl_vcpfunc_t*) &my_rlhandler);
+
+		fd_set fds;
+
 		for (;;) {
-			rl_callback_read_char();
-		
-			if (get_and_print(buf, newsd) == 1) break;
-			//read_and_send(buf, newsd);
+			FD_ZERO(&fds);
+			FD_SET(newsd, &fds);
+			FD_SET(0, &fds);
+
+			while (select (newsd+1, &fds, 0, 0, 0) < 0) {
+					if (errno != EINTR && errno != EAGAIN)
+					perror("select");
+					exit(1);
+			}
+
+        if (FD_ISSET(0, &fds))
+        {
+            rl_callback_read_char();
+        }
+        if (FD_ISSET(newsd, &fds)){
+					if (get_and_print(buf, newsd) == 1) break;
+				}
 		}
+
 		/* Make sure we don't leak open files */
 		if (close(newsd) < 0)
 			perror("close");

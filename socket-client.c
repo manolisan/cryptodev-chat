@@ -21,12 +21,15 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#include <sys/select.h>
+
 #include <readline/readline.h>
 #include <readline/history.h>
 
 #include "socket-common.h"
 
 int newsd;
+char prompt[100];
 
 int main(int argc, char *argv[])
 {
@@ -72,19 +75,33 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "Connected.\n");
 
 	/* Be careful with buffer overruns, ensure NUL-termination */
+	printf("Please enter your prompt: ");
+	scanf("%s", &prompt);
 
-	rl_callback_handler_install("Stratis> ", (rl_vcpfunc_t*) &my_rlhandler);
+	rl_callback_handler_install(&prompt, (rl_vcpfunc_t*) &my_rlhandler);
 
-	//read_and_send(buf, sd);
-	/* Read answer and write it to standard output */
+	fd_set fds;
+
+
 	for (;;) {
-		rl_callback_read_char();
-		//printf("read_ok_okokkokokok\n");
-		//fflush(stdout);
+		FD_ZERO(&fds);
+		FD_SET(newsd, &fds);
+		FD_SET(0, &fds);
 
+		while (select (newsd+1, &fds, 0, 0, 0) < 0) {
+				if (errno != EINTR && errno != EAGAIN)
+				perror("select");
+				exit(1);
+		}
+
+			if (FD_ISSET(0, &fds))
+			{
+					rl_callback_read_char();
+			}
+			if (FD_ISSET(newsd, &fds)){
+				if (get_and_print(buf, newsd) == 1) break;
+			}
 	}
-	//if (get_and_print(buf, sd) == 1) break;
-
 
 	 rl_callback_handler_remove();
 
