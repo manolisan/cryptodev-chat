@@ -57,8 +57,6 @@ int main(int argc, char *argv[])
 		if (strcmp(argv[3], "--encrypted")==0) encrypted = 1;
 	}
 
-	signal(SIGINT, intHandler);
-
 	prompt = malloc(100*sizeof(char));
 	printf("Please enter your prompt: ");
 

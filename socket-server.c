@@ -105,7 +105,6 @@ int main(int argc, char *argv[])
 		addrstr, ntohs(sa.sin_port));
 
 		rl_callback_handler_install(prompt, (rl_vcpfunc_t*) &my_rlhandler);
-		signal(SIGINT, intHandler);
 
 		fd_set fds;
 
@@ -130,8 +129,6 @@ int main(int argc, char *argv[])
 		}
 
 		printf("Client went away!\n");
-		signal(SIGINT, SIG_DFL);
-
 
 		/* Make sure we don't leak open files */
 		if (close(newsd) < 0)

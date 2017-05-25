@@ -294,19 +294,3 @@ if (close(cfd)<0) {
 }
 return;
 }
-
-void intHandler(int sig){
-
-	signal(sig, SIG_IGN);
-	if (shutdown(newsd, SHUT_WR) < 0){
-		perror("Error on shutdown connection");
-		exit(1);
-	}
-
-	rl_callback_handler_remove();
-
-	if (close(newsd) < 0)
-		perror("close");
-
-	exit(1);
-}
