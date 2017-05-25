@@ -1,9 +1,9 @@
 /*
- * socket-server.c
- * Simple TCP/IP communication using sockets
- *
- * Vangelis Koukis <vkoukis@cslab.ece.ntua.gr>
- */
+* socket-server.c
+* Simple TCP/IP communication using sockets
+*
+* Vangelis Koukis <vkoukis@cslab.ece.ntua.gr>
+*/
 
 #include <stdio.h>
 #include <errno.h>
@@ -13,6 +13,9 @@
 #include <signal.h>
 #include <unistd.h>
 #include <netdb.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <sys/stat.h>
 
 #include <sys/time.h>
 #include <sys/types.h>
@@ -27,17 +30,29 @@
 #include <readline/history.h>
 
 #include "socket-common.h"
+#include <crypto/cryptodev.h>
 
 char prompt[100];
 int  newsd;
+int encrypted=0;
 
-int main(void)
+int main(int argc, char *argv[])
 {
 	char buf[BUFF_SIZE];
 	char addrstr[INET_ADDRSTRLEN];
 	int sd;
 	socklen_t len;
 	struct sockaddr_in sa;
+
+	if (argc != 2 && argc != 1){
+		fprintf(stderr, "Usage: %s [--encrypted]\n", argv[0]);
+		exit(1);
+	}
+
+	//Check for encryption option
+	if (argc == 2){
+		if (strcmp(argv[1], "--encrypted")==0) encrypted = 1;
+	}
 
 	/* Make sure a broken connection doesn't kill us */
 	signal(SIGPIPE, SIG_IGN);
@@ -81,40 +96,41 @@ int main(void)
 			exit(1);
 		}
 		fprintf(stderr, "Incoming connection from %s:%d\n",
-			addrstr, ntohs(sa.sin_port));
+		addrstr, ntohs(sa.sin_port));
 
 
-			printf("Please enter your prompt: ");
-			scanf("%s", &prompt);
+		printf("Please enter your prompt: ");
+		scanf("%s", &prompt);
 		rl_callback_handler_install(prompt, (rl_vcpfunc_t*) &my_rlhandler);
 
 		fd_set fds;
-		
+
 		for (;;) {
 			FD_ZERO(&fds);
 			FD_SET(newsd, &fds);
 			FD_SET(0, &fds);
 
 			while (select (newsd+1, &fds, 0, 0, 0) < 0) {
-					if (errno != EINTR && errno != EAGAIN)
-					perror("select");
-					exit(1);
+				if (errno != EINTR && errno != EAGAIN)
+				perror("select");
+				exit(1);
 			}
 
-        if (FD_ISSET(0, &fds))
-        {
-            rl_callback_read_char();
-        }
-        if (FD_ISSET(newsd, &fds)){
-					if (get_and_print(buf, newsd) == 1) break;
-				}
+			if (FD_ISSET(0, &fds))
+			{
+				rl_callback_read_char();
+			}
+			if (FD_ISSET(newsd, &fds)){
+				if (get_and_print(buf, newsd) == 1) break;
+			}
 		}
 
 		/* Make sure we don't leak open files */
 		if (close(newsd) < 0)
-			perror("close");
+		perror("close");
+
 	}
-	 rl_callback_handler_remove();
+	rl_callback_handler_remove();
 
 	/* This will never happen */
 	return 1;
