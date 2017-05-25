@@ -9,7 +9,9 @@
 
 CC = gcc
 
-CFLAGS = -Wall
+CRYPTODEVDIR=$(HOME)/cryptodev/cryptodev-linux-1.6
+
+CFLAGS = -Wall -I$(CRYPTODEVDIR)
 CFLAGS += -g
 
 # CFLAGS += -O2 -fomit-frame-pointer -finline-functions
