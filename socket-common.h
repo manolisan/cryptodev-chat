@@ -19,6 +19,7 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <arpa/inet.h>
+#include <signal.h>
 
 #ifndef _SOCKET_COMMON_H
 #define _SOCKET_COMMON_H
@@ -53,3 +54,5 @@ void my_rlhandler(char* line);
 void encrypt(void *buffer, size_t enc_s);
 
 void decrypt(void *buffer);
+
+void intHandler(int sig);

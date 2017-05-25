@@ -56,6 +56,12 @@ int main(int argc, char *argv[])
 
 	/* Make sure a broken connection doesn't kill us */
 	signal(SIGPIPE, SIG_IGN);
+	signal(SIGINT, intHandler);
+
+	/* Identity */
+	prompt = malloc(100*sizeof(char));
+	printf("Please enter your prompt: ");
+	scanf("%s", prompt);
 
 	/* Create TCP/IP socket, used as main chat channel */
 	if ((sd = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
@@ -81,6 +87,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+
 	/* Loop forever, accept()ing connections */
 	for (;;) {
 		fprintf(stderr, "Waiting for an incoming connection...\n");
@@ -98,9 +105,6 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Incoming connection from %s:%d\n",
 		addrstr, ntohs(sa.sin_port));
 
-		prompt = malloc(100*sizeof(char));
-		printf("Please enter your prompt: ");
-		scanf("%s", prompt);
 		rl_callback_handler_install(prompt, (rl_vcpfunc_t*) &my_rlhandler);
 
 		fd_set fds;
@@ -125,11 +129,14 @@ int main(int argc, char *argv[])
 			}
 		}
 
+		printf("Client went away!\n");
+
 		/* Make sure we don't leak open files */
 		if (close(newsd) < 0)
 		perror("close");
 
 	}
+
 	rl_callback_handler_remove();
 
 	/* This will never happen */

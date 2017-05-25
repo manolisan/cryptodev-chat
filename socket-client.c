@@ -39,7 +39,7 @@ int encrypted=0;
 int main(int argc, char *argv[])
 {
 
-	int sd, port;
+	int port;
 	char buf[BUFF_SIZE];
 	char *hostname;
 	struct hostent *hp;
@@ -56,6 +56,13 @@ int main(int argc, char *argv[])
 	if (argc == 4){
 		if (strcmp(argv[3], "--encrypted")==0) encrypted = 1;
 	}
+
+	signal(SIGINT, intHandler);
+
+	prompt = malloc(100*sizeof(char));
+	printf("Please enter your prompt: ");
+
+	scanf("%s", prompt);
 
 	/* Create TCP/IP socket, used as main chat channel */
 	if ((newsd = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
@@ -82,10 +89,6 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "Connected.\n");
 
 	/* Be careful with buffer overruns, ensure NUL-termination */
-	prompt = malloc(100*sizeof(char));
-	printf("Please enter your prompt: ");
-	scanf("%s", prompt);
-
 	rl_callback_handler_install(prompt, (rl_vcpfunc_t*) &my_rlhandler);
 
 	fd_set fds;
@@ -110,8 +113,12 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	/* Make sure we don't leak open files */
+	if (close(newsd) < 0)
+		perror("close");
+
 	rl_callback_handler_remove();
 
-	fprintf(stderr, "\nDone.\n");
+	fprintf(stderr, "\nServer abonded connection.\n");
 	return 0;
 }

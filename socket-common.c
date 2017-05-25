@@ -25,6 +25,8 @@ ssize_t insist_read(int fd, void *buf, size_t cnt)
 		ret = read(fd, buf, cnt);
 		if (ret < 0){
 			return ret;
+		} else if (ret <= 0){
+			return 0;
 		}
 		buf += ret;
 		cnt -= ret;
@@ -99,7 +101,7 @@ int get_and_print(char * buf, int sd){
 
 void my_rlhandler(char* line)
 {
-	if (line == NULL) return; //???? to change!!!!!
+	if (line == NULL) return;
 
 	size_t len = strlen(line);
 	size_t name_len = strlen(prompt);
@@ -109,16 +111,7 @@ void my_rlhandler(char* line)
 		// send the length of the message
 		uint32_t wlen = htonl(len + name_len + 1);
 
-		/*
-		//encrypt(&wlen, sizeof(wlen));
-		if( insist_write(newsd, &wlen, sizeof(wlen)) != sizeof(wlen)){
-			perror("write");
-			exit(1);
-		}
-		*/
-
 		// format messasge
-		//char * full_message = malloc(len + name_len + 1); // 1 for a space, 1 for line changing and 1 for a \0
 		char * full_message = malloc(BUFF_SIZE);
 		memcpy(full_message, &wlen, sizeof(wlen));
 		strcpy(full_message + sizeof(wlen) , prompt);
@@ -300,4 +293,20 @@ if (close(cfd)<0) {
 	exit(1);
 }
 return;
+}
+
+void intHandler(int sig){
+
+	signal(sig, SIG_IGN);
+	if (shutdown(newsd, SHUT_WR) < 0){
+		perror("Error on shutdown connection");
+		exit(1);
+	}
+
+	rl_callback_handler_remove();
+
+	if (close(newsd) < 0)
+		perror("close");
+
+	exit(1);
 }
