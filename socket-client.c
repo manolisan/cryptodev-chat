@@ -58,12 +58,11 @@ int main(int argc, char *argv[])
 	}
 
 	/* Create TCP/IP socket, used as main chat channel */
-	if ((sd = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
+	if ((newsd = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
 		perror("socket");
 		exit(1);
 	}
 	fprintf(stderr, "Created TCP socket\n");
-	newsd = sd;
 
 	/* Look up remote hostname on DNS */
 	if ( !(hp = gethostbyname(hostname))) {
@@ -76,7 +75,7 @@ int main(int argc, char *argv[])
 	sa.sin_port = htons(port);
 	memcpy(&sa.sin_addr.s_addr, hp->h_addr, sizeof(struct in_addr));
 	fprintf(stderr, "Connecting to remote host... "); fflush(stderr);
-	if (connect(sd, (struct sockaddr *) &sa, sizeof(sa)) < 0) {
+	if (connect(newsd, (struct sockaddr *) &sa, sizeof(sa)) < 0) {
 		perror("connect");
 		exit(1);
 	}
