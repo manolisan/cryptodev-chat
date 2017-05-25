@@ -1,17 +1,4 @@
-#include <ctype.h>
-#include <sys/types.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
-#include <readline/readline.h>
-#include <readline/history.h>
-#include <fcntl.h>
-#include <sys/ioctl.h>
-#include <sys/stat.h>
 #include "socket-common.h"
-#include <crypto/cryptodev.h>
 
 /* Insist until all of the data has been written */
 ssize_t insist_write(int fd, const void *buf, size_t cnt)
@@ -29,7 +16,7 @@ ssize_t insist_write(int fd, const void *buf, size_t cnt)
 	return orig_cnt;
 }
 
-ssize_t insist_read(int fd, char *buf, size_t cnt)
+ssize_t insist_read(int fd, void *buf, size_t cnt)
 {
 	ssize_t ret;
 	size_t orig_cnt = cnt;
@@ -47,26 +34,43 @@ ssize_t insist_read(int fd, char *buf, size_t cnt)
 
 int get_and_print(char * buf, int sd){
 	/// sizeof buf??? when o put the change of line?
-	uint32_t size;
 	ssize_t n;
-	insist_read(sd, &size, sizeof(size));
+	uint32_t size;
 
-	uint32_t mes_size = ntohl(size);
 	if(encrypted==1){
 		n = insist_read(sd, buf, DATA_SIZE);
+		if (n < 0) {
+			perror("read");
+			exit(1);
+		}
+		if (n <= 0) return 1;
+
+		decrypt(buf);
+
+		memcpy(&size, buf, sizeof(size));
+		size = ntohl(size);
+		//printf("Size %ld->", size);
+
+		buf += sizeof(size);
+
 	}
 	else{
-		n = insist_read(sd, buf, mes_size);
-	}
-	if (n < 0) {
-		perror("read");
-		exit(1);
-	}
-	//printf("Received %d bytes:\n", n);
+		n  = insist_read(sd, &size, sizeof(size));
+		if (n < 0) {
+			perror("read");
+			exit(1);
+		}
+		if (n <= 0) return 1;
 
-	//If reached EOF, return 1.
-	if (n <= 0) return 1;
-	if (encrypted==1) decrypt(buf);
+		size = ntohl(size);
+		n = insist_read(sd, buf, size);
+		if (n < 0) {
+			perror("read");
+			exit(1);
+		}
+		if (n <= 0) return 1;
+	}
+
 
 
 	int saved_point = rl_point;
@@ -77,7 +81,7 @@ int get_and_print(char * buf, int sd){
 
 
 	// Write message to stdout
-	if (insist_write(0, buf, mes_size) != mes_size) {
+	if (insist_write(0, buf, size) != size) {
 		perror("write");
 		exit(1);
 	}
@@ -104,22 +108,25 @@ void my_rlhandler(char* line)
 
 		// send the length of the message
 		uint32_t wlen = htonl(len + name_len + 1);
+
+		/*
 		//encrypt(&wlen, sizeof(wlen));
 		if( insist_write(newsd, &wlen, sizeof(wlen)) != sizeof(wlen)){
 			perror("write");
 			exit(1);
 		}
+		*/
 
 		// format messasge
 		//char * full_message = malloc(len + name_len + 1); // 1 for a space, 1 for line changing and 1 for a \0
 		char * full_message = malloc(BUFF_SIZE);
-		strcpy(full_message, prompt);
-		//full_message[name_len] = ' ';
-		strcpy(full_message + name_len, line);
-		full_message[len +name_len] = '\n';
-		//full_message[len +name_len + 3] = '\0';
+		memcpy(full_message, &wlen, sizeof(wlen));
+		strcpy(full_message + sizeof(wlen) , prompt);
+		strcpy(full_message + name_len  + sizeof(wlen), line);
+		full_message[len +name_len  + sizeof(wlen)] = '\n';
+
 		if (encrypted==1){
-			encrypt(full_message, len+name_len+1);
+			encrypt(full_message, len+name_len + sizeof(wlen) + 1);
 			if(insist_write(newsd, full_message, DATA_SIZE) != DATA_SIZE){
 				perror("write");
 				exit(1);

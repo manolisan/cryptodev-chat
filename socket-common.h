@@ -10,6 +10,15 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <crypto/cryptodev.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <arpa/inet.h>
 
 #ifndef _SOCKET_COMMON_H
 #define _SOCKET_COMMON_H
@@ -28,7 +37,7 @@
 #define KEY_SIZE	16
 
 extern int newsd;
-extern char prompt[100];
+extern char * prompt;
 extern int encrypted;
 
 ssize_t insist_write(int fd, const void *buf, size_t cnt);

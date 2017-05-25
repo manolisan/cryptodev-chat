@@ -33,15 +33,14 @@
 #include <crypto/cryptodev.h>
 
 int newsd;
-char prompt[100];
+char *prompt;
 int encrypted=0;
 
 int main(int argc, char *argv[])
 {
 
 	int sd, port;
-	int i;
-	char buf[100];
+	char buf[BUFF_SIZE];
 	char *hostname;
 	struct hostent *hp;
 	struct sockaddr_in sa;
@@ -84,10 +83,11 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "Connected.\n");
 
 	/* Be careful with buffer overruns, ensure NUL-termination */
+	prompt = malloc(100*sizeof(char));
 	printf("Please enter your prompt: ");
-	scanf("%s", &prompt);
+	scanf("%s", prompt);
 
-	rl_callback_handler_install(&prompt, (rl_vcpfunc_t*) &my_rlhandler);
+	rl_callback_handler_install(prompt, (rl_vcpfunc_t*) &my_rlhandler);
 
 	fd_set fds;
 

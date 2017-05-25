@@ -32,7 +32,7 @@
 #include "socket-common.h"
 #include <crypto/cryptodev.h>
 
-char prompt[100];
+char * prompt;
 int  newsd;
 int encrypted=0;
 
@@ -98,9 +98,9 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Incoming connection from %s:%d\n",
 		addrstr, ntohs(sa.sin_port));
 
-
+		prompt = malloc(100*sizeof(char));
 		printf("Please enter your prompt: ");
-		scanf("%s", &prompt);
+		scanf("%s", prompt);
 		rl_callback_handler_install(prompt, (rl_vcpfunc_t*) &my_rlhandler);
 
 		fd_set fds;
