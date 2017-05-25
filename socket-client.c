@@ -1,9 +1,9 @@
 /*
- * socket-client.c
- * Simple TCP/IP communication using sockets
- *
- * Vangelis Koukis <vkoukis@cslab.ece.ntua.gr>
- */
+* socket-client.c
+* Simple TCP/IP communication using sockets
+*
+* Vangelis Koukis <vkoukis@cslab.ece.ntua.gr>
+*/
 
 #include <stdio.h>
 #include <errno.h>
@@ -13,6 +13,9 @@
 #include <signal.h>
 #include <unistd.h>
 #include <netdb.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <sys/stat.h>
 
 #include <sys/time.h>
 #include <sys/types.h>
@@ -27,27 +30,33 @@
 #include <readline/history.h>
 
 #include "socket-common.h"
+#include <crypto/cryptodev.h>
 
 int newsd;
 char prompt[100];
+int encrypted=0;
 
 int main(int argc, char *argv[])
 {
 
-
 	int sd, port;
-
+	int i;
 	char buf[100];
 	char *hostname;
 	struct hostent *hp;
 	struct sockaddr_in sa;
 
-	if (argc != 3) {
-		fprintf(stderr, "Usage: %s hostname port\n", argv[0]);
+	if (argc != 3 && argc != 4) {
+		fprintf(stderr, "Usage: %s hostname port [--encrypted]\n", argv[0]);
 		exit(1);
 	}
 	hostname = argv[1];
 	port = atoi(argv[2]); /* Needs better error checking */
+
+	//Check for encryption option
+	if (argc == 4){
+		if (strcmp(argv[3], "--encrypted")==0) encrypted = 1;
+	}
 
 	/* Create TCP/IP socket, used as main chat channel */
 	if ((sd = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
@@ -81,28 +90,28 @@ int main(int argc, char *argv[])
 	rl_callback_handler_install(&prompt, (rl_vcpfunc_t*) &my_rlhandler);
 
 	fd_set fds;
-	
+
 	for (;;) {
 		FD_ZERO(&fds);
 		FD_SET(newsd, &fds);
 		FD_SET(0, &fds);
 
 		while (select (newsd+1, &fds, 0, 0, 0) < 0) {
-				if (errno != EINTR && errno != EAGAIN)
-				perror("select");
-				exit(1);
+			if (errno != EINTR && errno != EAGAIN)
+			perror("select");
+			exit(1);
 		}
 
-			if (FD_ISSET(0, &fds))
-			{
-					rl_callback_read_char();
-			}
-			if (FD_ISSET(newsd, &fds)){
-				if (get_and_print(buf, newsd) == 1) break;
-			}
+		if (FD_ISSET(0, &fds))
+		{
+			rl_callback_read_char();
+		}
+		if (FD_ISSET(newsd, &fds)){
+			if (get_and_print(buf, newsd) == 1) break;
+		}
 	}
 
-	 rl_callback_handler_remove();
+	rl_callback_handler_remove();
 
 	fprintf(stderr, "\nDone.\n");
 	return 0;
