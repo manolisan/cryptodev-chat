@@ -126,7 +126,7 @@ void my_rlhandler(char* line)
 			}
 		}
 		else{
-			if(insist_write(newsd, full_message, len+name_len+1) != len+name_len+1){
+			if(insist_write(newsd, full_message, len+name_len+ sizeof(wlen)+1) != len+name_len+ sizeof(wlen)+1){
 				perror("write");
 				exit(1);
 			}
