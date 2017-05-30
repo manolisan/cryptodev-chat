@@ -16,9 +16,9 @@ CFLAGS += -g
 
 # CFLAGS += -O2 -fomit-frame-pointer -finline-functions
 
-LIBS = -lreadline
+LIBS = -lreadline -lpthread
 
-BINS = socket-client socket-server
+BINS = socket-client socket-server socket-server-irc
 
 all: $(BINS)
 
@@ -28,7 +28,13 @@ socket-client: socket-client.o socket-common.o
 socket-server: socket-server.o socket-common.o
 	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
 
+socket-server-irc: socket-server-irc.o socket-common.o
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
+
 socket-server.o: socket-server.c
+	$(CC) $(CFLAGS) -c $^
+
+socket-server-irc.o: socket-server-irc.c
 	$(CC) $(CFLAGS) -c $^
 
 socket-client.o: socket-client.c
