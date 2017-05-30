@@ -29,6 +29,8 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
+#include <pthread.h>
+
 #include "socket-common.h"
 #include <crypto/cryptodev.h>
 
@@ -43,6 +45,8 @@ char addrstr[INET_ADDRSTRLEN];
 int sd;
 socklen_t len;
 struct sockaddr_in sa;
+
+
 
 int forward(int sd, int me){
 	char *buf;
@@ -131,6 +135,25 @@ int forward(int sd, int me){
 	return 0;
 }
 
+void *client_service(void* client_id){
+
+	fprintf(stderr, "Incoming connection from %s:%d\n",
+	addrstr, ntohs(sa.sin_port));
+	int id = *((int *) client_id);
+	int client_sd = newsd_serve[id];
+
+	printf("From Client %d!\n", id);
+
+	while (forward(client_sd, id) != 1);
+
+	printf("Client %d went away!\n", id);
+
+	/* Make sure we don't leak open files */
+	if (close(newsd_serve[no_client]) < 0)
+	perror("close");
+
+	return NULL;
+}
 
 
 int main(int argc, char *argv[])
@@ -202,29 +225,4 @@ int main(int argc, char *argv[])
 
 	/* This will never happen */
 	return 1;
-}
-
-
-
-void *client_service(void* client_id){
-
-	fprintf(stderr, "Incoming connection from %s:%d\n",
-	addrstr, ntohs(sa.sin_port));
-	int id = *((int *) client_id);
-	int client_sd = newsd_serve[id];
-
-	signal(SIGINT, intHandler);
-	printf("From Client %d!\n", id);
-
-	while (forward(client_sd, id) != 1);
-
-	printf("Client %d went away!\n", id);
-	signal(SIGINT, SIG_DFL);
-
-
-	/* Make sure we don't leak open files */
-	if (close(newsd_serve[no_client]) < 0)
-			perror("close");
-
-	return NULL;
 }
