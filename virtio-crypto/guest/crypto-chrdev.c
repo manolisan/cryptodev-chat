@@ -67,6 +67,9 @@ static int crypto_chrdev_open(struct inode *inode, struct file *filp)
 	struct crypto_device *crdev;
 	unsigned int syscall_type = VIRTIO_CRYPTO_SYSCALL_OPEN;
 	int host_fd = -1;
+	struct virtqueue *vq;
+	struct scatterlist syscall_type_sg, file_descriptor_sg, *sgs[2];
+	unsigned int num_out, num_in;
 
 	debug("Entering");
 
@@ -96,17 +99,14 @@ static int crypto_chrdev_open(struct inode *inode, struct file *filp)
 	* We need two sg lists, one for syscall_type and one to get the
 	* file descriptor from the host.
 	**/
-	struct virtqueue *vq = crdev->vq;
-	struct scatterlist syscall_type_sg, file_descriptor_sg, *sgs[2];
-	unsigned int num_out, num_in;
-
+	vq = crdev->vq;
 	num_in=0;
 	num_out=0;
 
-	sg_init_one(&syscall_type_sg, syscall_type, sizeof(*syscall_type));
+	sg_init_one(&syscall_type_sg, &syscall_type, sizeof(syscall_type));
 	sgs[num_out++] = &syscall_type_sg;
 
-	sg_init_one(&file_descriptor_sg, crof->host_fd, sizeof(crof->host_fd));
+	sg_init_one(&file_descriptor_sg, &(crof->host_fd), sizeof(crof->host_fd));
 	sgs[num_out + num_in++] = &file_descriptor_sg;
 	/**
 	* Wait for the host to process our data.
@@ -118,7 +118,6 @@ static int crypto_chrdev_open(struct inode *inode, struct file *filp)
 
 	/* If host failed to open() return -ENODEV. */
 	if (crof->host_fd<0){
-		perror("open");
 		return -ENODEV;
 	}
 
@@ -130,27 +129,29 @@ static int crypto_chrdev_open(struct inode *inode, struct file *filp)
 
 static int crypto_chrdev_release(struct inode *inode, struct file *filp)
 {
-	int ret = 0;
+	int ret = 0, err;
+	unsigned int len;
 	struct crypto_open_file *crof = filp->private_data;
 	struct crypto_device *crdev = crof->crdev;
 	unsigned int syscall_type = VIRTIO_CRYPTO_SYSCALL_CLOSE;
+	struct virtqueue *vq;
+	struct scatterlist syscall_type_sg, file_descriptor_sg, *sgs[2];
+	unsigned int num_out, num_in;
 
 	debug("Entering");
 
 	/**
 	* Send data to the host.
 	**/
-	struct virtqueue *vq = crdev->vq;
-	struct scatterlist syscall_type_sg, file_descriptor_sg, *sgs[2];
-	unsigned int num_out, num_in;
+	vq = crdev->vq;
 
 	num_in=0;
 	num_out=0;
 
-	sg_init_one(&syscall_type_sg, syscall_type, sizeof(*syscall_type));
+	sg_init_one(&syscall_type_sg, &syscall_type, sizeof(syscall_type));
 	sgs[num_out++] = &syscall_type_sg;
 
-	sg_init_one(&file_descriptor_sg, crof->host_fd, sizeof(crof->host_fd));
+	sg_init_one(&file_descriptor_sg, &(crof->host_fd), sizeof(crof->host_fd));
 	sgs[num_out++] = &file_descriptor_sg;
 	/**
 	* Wait for the host to process our data.
