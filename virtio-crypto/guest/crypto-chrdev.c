@@ -67,7 +67,6 @@ static int crypto_chrdev_open(struct inode *inode, struct file *filp)
 	struct crypto_device *crdev;
 	unsigned int syscall_type = VIRTIO_CRYPTO_SYSCALL_OPEN;
 	int host_fd = -1;
-	struct virtqueue *vq;
 	struct scatterlist syscall_type_sg, file_descriptor_sg, *sgs[2];
 	unsigned int num_out, num_in;
 
@@ -80,8 +79,7 @@ static int crypto_chrdev_open(struct inode *inode, struct file *filp)
 	/* Associate this open file with the relevant crypto device. */
 	crdev = get_crypto_dev_by_minor(iminor(inode));
 	if (!crdev) {
-		debug("Could not find crypto device with %u minor",
-		iminor(inode));
+		debug("Could not find crypto device with %u minor", iminor(inode));
 		ret = -ENODEV;
 		goto fail;
 	}
@@ -99,7 +97,6 @@ static int crypto_chrdev_open(struct inode *inode, struct file *filp)
 	* We need two sg lists, one for syscall_type and one to get the
 	* file descriptor from the host.
 	**/
-	vq = crdev->vq;
 	num_in=0;
 	num_out=0;
 
@@ -111,9 +108,11 @@ static int crypto_chrdev_open(struct inode *inode, struct file *filp)
 	/**
 	* Wait for the host to process our data.
 	**/
-	err = virtqueue_add_sgs(vq, sgs, num_out, num_in, &syscall_type_sg, GFP_ATOMIC);
-	virtqueue_kick(vq);
-	while (virtqueue_get_buf(vq, &len) == NULL)
+
+	//LOCK?????????
+	err = virtqueue_add_sgs(crdev->vq, sgs, num_out, num_in, &syscall_type_sg, GFP_ATOMIC);
+	virtqueue_kick(crdev->vq);
+	while (virtqueue_get_buf(crdev->vq, &len) == NULL)
 	/* do nothing */;
 
 	/* If host failed to open() return -ENODEV. */
@@ -134,7 +133,6 @@ static int crypto_chrdev_release(struct inode *inode, struct file *filp)
 	struct crypto_open_file *crof = filp->private_data;
 	struct crypto_device *crdev = crof->crdev;
 	unsigned int syscall_type = VIRTIO_CRYPTO_SYSCALL_CLOSE;
-	struct virtqueue *vq;
 	struct scatterlist syscall_type_sg, file_descriptor_sg, *sgs[2];
 	unsigned int num_out, num_in;
 
@@ -143,8 +141,6 @@ static int crypto_chrdev_release(struct inode *inode, struct file *filp)
 	/**
 	* Send data to the host.
 	**/
-	vq = crdev->vq;
-
 	num_in=0;
 	num_out=0;
 
@@ -156,9 +152,10 @@ static int crypto_chrdev_release(struct inode *inode, struct file *filp)
 	/**
 	* Wait for the host to process our data.
 	**/
-	err = virtqueue_add_sgs(vq, sgs, num_out, num_in, &syscall_type_sg, GFP_ATOMIC);
-	virtqueue_kick(vq);
-	while (virtqueue_get_buf(vq, &len) == NULL)
+	//LOCK???????????????????????????????????????????????????????????????
+	err = virtqueue_add_sgs(crdev->vq, sgs, num_out, num_in, &syscall_type_sg, GFP_ATOMIC);
+	virtqueue_kick(crdev->vq);
+	while (virtqueue_get_buf(crdev->vq, &len) == NULL)
 	/* do nothing */;
 
 	kfree(crof);
@@ -175,20 +172,21 @@ static long crypto_chrdev_ioctl(struct file *filp, unsigned int cmd,
 		struct crypto_open_file *crof = filp->private_data;
 		struct crypto_device *crdev = crof->crdev;
 		struct virtqueue *vq = crdev->vq;
-		struct scatterlist syscall_type_sg, output_msg_sg, input_msg_sg,
-		*sgs[3];
+		struct scatterlist syscall_type_sg, host_fd_sg, ioctl_cmd_sg, session_key_sg,
+		session_op_sg, ses_id_sg, crypt_op_sg, src_sg, iv_sg, dst_sg, host_return_val_sg, *sgs[8];
 		unsigned int num_out, num_in, len;
-		#define MSG_LEN 100
-		unsigned char *output_msg, *input_msg;
 		unsigned int *syscall_type;
+		unsigned char *session_key, *src, *iv, *dst;
+		struct session_op session_op, *session_op_p;
+		struct crypt_op crypt_op, *crypt_op_p;
+		int host_return_val;
+		__u32 ses_id;
 
 		debug("Entering");
 
 		/**
 		* Allocate all data that will be sent to the host.
 		**/
-		output_msg = kmalloc(MSG_LEN, GFP_KERNEL);
-		input_msg = kmalloc(MSG_LEN, GFP_KERNEL);
 		syscall_type = kmalloc(sizeof(*syscall_type), GFP_KERNEL);
 		*syscall_type = VIRTIO_CRYPTO_SYSCALL_IOCTL;
 
@@ -200,7 +198,10 @@ static long crypto_chrdev_ioctl(struct file *filp, unsigned int cmd,
 		**/
 		sg_init_one(&syscall_type_sg, syscall_type, sizeof(*syscall_type));
 		sgs[num_out++] = &syscall_type_sg;
-		/* ?? */
+		sg_init_one(&host_fd_sg, &(crof->host_fd), sizeof(crof->host_fd));
+		sgs[num_out++] = &host_fd_sg;
+		sg_init_one(&ioctl_cmd_sg, &cmd, sizeof(cmd));
+		sgs[num_out++] = &ioctl_cmd_sg;
 
 		/**
 		*  Add all the cmd specific sg lists.
@@ -208,34 +209,51 @@ static long crypto_chrdev_ioctl(struct file *filp, unsigned int cmd,
 		switch (cmd) {
 			case CIOCGSESSION:
 			debug("CIOCGSESSION");
-			memcpy(output_msg, "Hello HOST from ioctl CIOCGSESSION.", 36);
-			input_msg[0] = '\0';
-			sg_init_one(&output_msg_sg, output_msg, MSG_LEN);
-			sgs[num_out++] = &output_msg_sg;
-			sg_init_one(&input_msg_sg, input_msg, MSG_LEN);
-			sgs[num_out + num_in++] = &input_msg_sg;
 
+			session_op_p = (struct session_op *) arg;
+			copy_from_user(&session_op, session_op_p, sizeof(struct session_op));
+
+			session_key = kmalloc(session_op.keylen, GFP_KERNEL);
+			copy_from_user(session_key, session_op_p->key, session_op_p->keylen*sizeof(unsigned char));
+
+			sg_init_one(&session_key_sg, session_key, session_op.keylen);
+			sgs[num_out++] = &session_key_sg;
+			sg_init_one(&session_op_sg, &session_op, sizeof(session_op));
+			sgs[num_out + num_in++] = &session_op_sg;
 			break;
 
 			case CIOCFSESSION:
 			debug("CIOCFSESSION");
-			memcpy(output_msg, "Hello HOST from ioctl CIOCFSESSION.", 36);
-			input_msg[0] = '\0';
-			sg_init_one(&output_msg_sg, output_msg, MSG_LEN);
-			sgs[num_out++] = &output_msg_sg;
-			sg_init_one(&input_msg_sg, input_msg, MSG_LEN);
-			sgs[num_out + num_in++] = &input_msg_sg;
+
+			copy_from_user(&ses_id, (__u32 *)arg, sizeof(__u32));
+
+			sg_init_one(&ses_id_sg, &ses_id, sizeof(__u32));
+			sgs[num_out++] = &ses_id_sg;
 
 			break;
 
 			case CIOCCRYPT:
 			debug("CIOCCRYPT");
-			memcpy(output_msg, "Hello HOST from ioctl CIOCCRYPT.", 33);
-			input_msg[0] = '\0';
-			sg_init_one(&output_msg_sg, output_msg, MSG_LEN);
-			sgs[num_out++] = &output_msg_sg;
-			sg_init_one(&input_msg_sg, input_msg, MSG_LEN);
-			sgs[num_out + num_in++] = &input_msg_sg;
+
+			crypt_op_p = (struct crypt_op *) arg;
+			copy_from_user(&crypt_op, crypt_op_p, sizeof(crypt_op));
+
+			src = kmalloc(crypt_op.len, GFP_KERNEL);
+			copy_from_user(src, crypt_op_p->src, crypt_op.len * sizeof(unsigned char));
+
+			iv = kmalloc(16, GFP_KERNEL);
+			copy_from_user(iv, crypt_op_p->iv, 16 * sizeof(unsigned char));
+
+			dst = kmalloc(crypt_op.len, GFP_KERNEL);
+
+			sg_init_one(&crypt_op_sg, &crypt_op, sizeof(crypt_op));
+			sgs[num_out++] = &crypt_op_sg;
+			sg_init_one(&src_sg, src, crypt_op.len * sizeof(unsigned char));
+			sgs[num_out++] = &src_sg;
+			sg_init_one(&iv_sg, iv, 16 * sizeof(unsigned char));
+			sgs[num_out++] = &iv_sg;
+			sg_init_one(&dst_sg, dst, crypt_op.len * sizeof(unsigned char));
+			sgs[num_out + num_in++] = &dst_sg;
 
 			break;
 
@@ -245,6 +263,8 @@ static long crypto_chrdev_ioctl(struct file *filp, unsigned int cmd,
 			break;
 		}
 
+		sg_init_one(&host_return_val_sg, &host_return_val, sizeof(host_return_val));
+		sgs[num_out + num_in++] = &host_return_val_sg;
 
 		/**
 		* Wait for the host to process our data.
@@ -257,11 +277,6 @@ static long crypto_chrdev_ioctl(struct file *filp, unsigned int cmd,
 			while (virtqueue_get_buf(vq, &len) == NULL)
 			/* do nothing */;
 
-			debug("We said: '%s'", output_msg);
-			debug("Host answered: '%s'", input_msg);
-
-			kfree(output_msg);
-			kfree(input_msg);
 			kfree(syscall_type);
 
 			debug("Leaving");
