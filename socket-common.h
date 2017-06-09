@@ -27,6 +27,7 @@
 /* Compile-time options */
 #define TCP_PORT    35001
 #define TCP_BACKLOG 5
+#define MAX_CLIENTS 10
 
 #define HELLO_THERE "Hello there!"
 
@@ -42,8 +43,7 @@ extern char * prompt;
 extern int encrypted;
 
 ssize_t insist_write(int fd, const void *buf, size_t cnt);
-
-size_t read_line(char * buf);
+ssize_t insist_read(int fd, void *buf, size_t cnt);
 
 void read_and_send(char * buf, int sd);
 
@@ -54,5 +54,3 @@ void my_rlhandler(char* line);
 void encrypt(void *buffer, size_t enc_s);
 
 void decrypt(void *buffer);
-
-void intHandler(int sig);
