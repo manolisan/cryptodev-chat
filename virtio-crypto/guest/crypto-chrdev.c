@@ -65,13 +65,16 @@ static int crypto_chrdev_open(struct inode *inode, struct file *filp)
 	unsigned int len;
 	struct crypto_open_file *crof;
 	struct crypto_device *crdev;
-	unsigned int syscall_type = VIRTIO_CRYPTO_SYSCALL_OPEN;
-	int host_fd = -1;
+	unsigned int *syscall_type;
+	int *host_fd;
 	struct scatterlist syscall_type_sg, file_descriptor_sg, *sgs[2];
 	unsigned int num_out, num_in;
 
 	debug("Entering");
-
+	syscall_type = kzalloc(sizeof(*syscall_type), GFP_KERNEL);
+	host_fd = kzalloc(sizeof(*host_fd), GFP_KERNEL);
+	*syscall_type = VIRTIO_CRYPTO_SYSCALL_OPEN;
+	*host_fd=-1;
 	ret = -ENODEV;
 	if ((ret = nonseekable_open(inode, filp)) < 0)
 	goto fail;
@@ -101,10 +104,10 @@ static int crypto_chrdev_open(struct inode *inode, struct file *filp)
 	num_in=0;
 	num_out=0;
 
-	sg_init_one(&syscall_type_sg, &syscall_type, sizeof(syscall_type));
+	sg_init_one(&syscall_type_sg, syscall_type, sizeof(*syscall_type));
 	sgs[num_out++] = &syscall_type_sg;
 
-	sg_init_one(&file_descriptor_sg, &(crof->host_fd), sizeof(crof->host_fd));
+	sg_init_one(&file_descriptor_sg, host_fd, sizeof(crof->host_fd));
 	sgs[num_out + num_in++] = &file_descriptor_sg;
 	/**
 	* Wait for the host to process our data.
@@ -117,10 +120,13 @@ static int crypto_chrdev_open(struct inode *inode, struct file *filp)
 
 	/* If host failed to open() return -ENODEV. */
 	printk("Host fd is: %d \n", (int) crof->host_fd);
-	if (crof->host_fd<0){
+	if (host_fd<0){
 		return -ENODEV;
 	}
 
+	crof->host_fd = *host_fd;
+	kfree(syscall_type);
+	kfree(host_fd);
 
 	fail:
 	debug("Leaving");
@@ -133,7 +139,8 @@ static int crypto_chrdev_release(struct inode *inode, struct file *filp)
 	unsigned int len;
 	struct crypto_open_file *crof = filp->private_data;
 	struct crypto_device *crdev = crof->crdev;
-	unsigned int syscall_type = VIRTIO_CRYPTO_SYSCALL_CLOSE;
+	unsigned int *syscall_type;
+	int *host_fd;
 	struct scatterlist syscall_type_sg, file_descriptor_sg, *sgs[2];
 	unsigned int num_out, num_in;
 
@@ -141,13 +148,18 @@ static int crypto_chrdev_release(struct inode *inode, struct file *filp)
 	/**
 	* Send data to the host.
 	**/
+	syscall_type = kzalloc(sizeof(*syscall_type), GFP_KERNEL);
+	*syscall_type = VIRTIO_CRYPTO_SYSCALL_CLOSE;
+
+	host_fd = kzalloc(sizeof(*host_fd), GFP_KERNEL);
+	*host_fd = crof->host_fd;
 	num_in=0;
 	num_out=0;
 
-	sg_init_one(&syscall_type_sg, &syscall_type, sizeof(syscall_type));
+	sg_init_one(&syscall_type_sg, syscall_type, sizeof(syscall_type));
 	sgs[num_out++] = &syscall_type_sg;
 
-	sg_init_one(&file_descriptor_sg, &(crof->host_fd), sizeof(crof->host_fd));
+	sg_init_one(&file_descriptor_sg, host_fd, sizeof(crof->host_fd));
 	sgs[num_out++] = &file_descriptor_sg;
 	/**
 	* Wait for the host to process our data.
@@ -156,12 +168,14 @@ static int crypto_chrdev_release(struct inode *inode, struct file *filp)
 	err = virtqueue_add_sgs(crdev->vq, sgs, num_out, num_in, &syscall_type_sg, GFP_ATOMIC);
 	virtqueue_kick(crdev->vq);
 
-	printk("syscall_type %d", syscall_type);
+	printk("syscall_type %d", *syscall_type);
 
 	while (virtqueue_get_buf(crdev->vq, &len) == NULL)
 	/* do nothing */;
 
 	kfree(crof);
+	kfree(syscall_type);
+	kfree(host_fd);
 	debug("Leaving");
 	return ret;
 
@@ -182,7 +196,7 @@ static long crypto_chrdev_ioctl(struct file *filp, unsigned int cmd,
 		unsigned char *session_key, *src, *iv, *dst;
 		struct session_op session_op, *session_op_p;
 		struct crypt_op crypt_op, *crypt_op_p;
-		int host_return_val;
+		int *host_return_val, *host_fd;
 		__u32 ses_id;
 
 		debug("Entering");
