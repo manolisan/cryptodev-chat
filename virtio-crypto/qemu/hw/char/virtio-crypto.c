@@ -47,6 +47,7 @@ static void vq_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 {
 	VirtQueueElement elem;
 	unsigned int *syscall_type;
+	int *fd;
 
 	DEBUG_IN();
 
@@ -58,15 +59,30 @@ static void vq_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 	DEBUG("I have got an item from VQ :)");
 
 	syscall_type = elem.out_sg[0].iov_base;
+	fd = elem.out_sg[0].iov_base;
+	printf("syscall_type: %d with second OUT element: %d \n", *syscall_type, *fd );
+
 	switch (*syscall_type) {
 	case VIRTIO_CRYPTO_SYSCALL_TYPE_OPEN:
 		DEBUG("VIRTIO_CRYPTO_SYSCALL_TYPE_OPEN");
-		/* ?? */
+		fd = elem.in_sg[0].iov_base;
+	  *fd = open("/dev/crypto", O_RDWR);
+		if (*fd < 0) {
+			DEBUG("open(/dev/crypto)");
+			return;
+		}
+		printf("OPEN: File descriptor: %d \n", *fd);
+
 		break;
 
 	case VIRTIO_CRYPTO_SYSCALL_TYPE_CLOSE:
 		DEBUG("VIRTIO_CRYPTO_SYSCALL_TYPE_CLOSE");
-		/* ?? */
+		fd = elem.out_sg[1].iov_base;
+		if (close(*fd)) {
+			DEBUG("close(fd)");
+			return;
+		}
+		free(fd);
 		break;
 
 	case VIRTIO_CRYPTO_SYSCALL_TYPE_IOCTL:

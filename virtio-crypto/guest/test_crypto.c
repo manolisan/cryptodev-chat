@@ -1,11 +1,11 @@
-/*                                                                       
+/*
  * test_crypto.c
- * 
- * Performs a simple encryption-decryption of urandom data from /dev/urandom 
+ *
+ * Performs a simple encryption-decryption of urandom data from /dev/urandom
  * with the use of cryptodev device.
  *
  * Stefanos Gerangelos <sgerag@cslab.ece.ntua.gr>
- *                                                                               
+ *
  */
 
 #include <stdio.h>
@@ -16,7 +16,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include "cryptodev.h"
- 
+
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -41,7 +41,7 @@ static int test_crypto(int cfd)
 	memset(&sess, 0, sizeof(sess));
 	memset(&cryp, 0, sizeof(cryp));
 
-	if (fill_urandom_buff(data.in) < 0) {		
+	if (fill_urandom_buff(data.in) < 0) {
 		printf("error @filling urandom data\n");
 		return 1;
 	}
@@ -56,12 +56,12 @@ static int test_crypto(int cfd)
 	sess.cipher = CRYPTO_AES_CBC;
 	sess.keylen = KEY_SIZE;
 	sess.key = (__u8  __user *)data.key;
-	
+
 	if (ioctl(cfd, CIOCGSESSION, &sess)) {
 		perror("ioctl(CIOCGSESSION)");
 		return 1;
 	}
-	
+
 	/**
 	 *  Encrypt data.in to data.encrypted
 	 **/
@@ -78,7 +78,7 @@ static int test_crypto(int cfd)
 		return 1;
 	}
 	printf("[OK]\n");
-	
+
 	/**
 	 *  Decrypt data.encrypted to data.decrypted
 	 **/
@@ -92,7 +92,7 @@ static int test_crypto(int cfd)
 		return 1;
 	}
 	printf("[OK]\n");
-	
+
 	/**
 	 *  Verify the result
 	 **/
@@ -104,29 +104,29 @@ static int test_crypto(int cfd)
 	} else {
 		printf(" Success\n");
 	}
-	
+
 	/**
-	 *  Finish crypto session 
+	 *  Finish crypto session
 	 **/
 	if (ioctl(cfd, CIOCFSESSION, &sess.ses)) {
 		perror("ioctl(CIOCFSESSION)");
 		return 1;
 	}
-	
+
 	return 0;
 }
 
 int fill_urandom_buff(char in[DATA_SIZE]){
 	int crypto_fd = open("/dev/urandom", O_RDONLY);
 	int ret = -1;
-	
+
 	if (crypto_fd < 0)
 		return crypto_fd;
-	
+
 	ret = read(crypto_fd, (void *)in, DATA_SIZE);
-	
+
 	close(crypto_fd);
-	
+
 	return ret;
 }
 
@@ -135,7 +135,7 @@ int main(int argc, char **argv)
 	int fd = -1;
 	char *filename;
 	char error_str[100];
-	
+
 	filename = (argv[1] == NULL) ? "/dev/crypto" : argv[1];
 	fd = open(filename, O_RDWR, 0);
 	if (fd < 0) {
@@ -143,14 +143,16 @@ int main(int argc, char **argv)
 		perror(error_str);
 		return 1;
 	}
-	
+
+	if (0 == 1){
 	if (test_crypto(fd))
 		return 1;
-	
+	}
+
 	if (close(fd)) {
 		perror("close(fd)");
 		return 1;
 	}
-	
+
 	return 0;
 }
