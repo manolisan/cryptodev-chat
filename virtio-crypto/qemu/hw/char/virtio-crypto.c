@@ -75,7 +75,6 @@ static void vq_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 
 		if (*host_fd < 0) {
 			DEBUG("open(/dev/crypto)");
-			return;
 		}
 
 		break;
@@ -86,7 +85,6 @@ static void vq_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 
 		if (close(*host_fd)) {
 			DEBUG("close(fd)");
-			return;
 		}
 
 		break;
