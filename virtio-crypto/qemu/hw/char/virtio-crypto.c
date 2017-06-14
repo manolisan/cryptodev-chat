@@ -47,7 +47,16 @@ static void vq_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 {
 	VirtQueueElement elem;
 	unsigned int *syscall_type;
-	int *fd;
+	int *host_fd;
+	unsigned int *ioctl_cmd;
+	int *host_return_val;
+	unsigned char *session_key;
+	struct session_op* session_op;
+	__u32 *ses_id;
+	struct crypt_op *crypt_op;
+	unsigned char *src;
+	unsigned char *iv;
+	unsigned char *dst;
 
 	DEBUG_IN();
 
@@ -57,42 +66,74 @@ static void vq_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 	}
 
 	DEBUG("I have got an item from VQ :)");
-
 	syscall_type = elem.out_sg[0].iov_base;
-	//fd = elem.out_sg[1].iov_base;
-	//printf("syscall_type: %d with second OUT element: %d \n", *syscall_type, *fd );
-
 	switch (*syscall_type) {
 	case VIRTIO_CRYPTO_SYSCALL_TYPE_OPEN:
 		DEBUG("VIRTIO_CRYPTO_SYSCALL_TYPE_OPEN");
-		fd = elem.in_sg[0].iov_base;
-	  *fd = open("/dev/crypto", O_RDWR);
-		if (*fd < 0) {
+		host_fd = elem.in_sg[0].iov_base;
+	  *host_fd = open("/dev/crypto", O_RDWR);
+		/*
+		if (*host_fd < 0) {
 			DEBUG("open(/dev/crypto)");
 			return;
 		}
-		printf("OPEN: File descriptor: %d \n", *fd);
+		*/
+		printf("OPEN: File descriptor: %d \n", *host_fd);
 
 		break;
 
 	case VIRTIO_CRYPTO_SYSCALL_TYPE_CLOSE:
 		DEBUG("VIRTIO_CRYPTO_SYSCALL_TYPE_CLOSE");
-		fd = elem.out_sg[1].iov_base;
-		printf("Close: File descriptor: %d \n", *fd);
+		host_fd = elem.out_sg[1].iov_base;
+		printf("Close: File descriptor: %d \n", *host_fd);
+		close(*host_fd);
+		/*
 		if (close(*fd)) {
 			DEBUG("close(fd)");
 			return;
 		}
+		*/
 		break;
 
 	case VIRTIO_CRYPTO_SYSCALL_TYPE_IOCTL:
 		DEBUG("VIRTIO_CRYPTO_SYSCALL_TYPE_IOCTL");
-		/* ?? */
-		unsigned char *output_msg = elem.out_sg[1].iov_base;
-		unsigned char *input_msg = elem.in_sg[0].iov_base;
-		memcpy(input_msg, "Host: Welcome to the virtio World!", 35);
-		printf("Guest says: %s\n", output_msg);
-		printf("We say: %s\n", input_msg);
+
+		host_fd = elem.out_sg[1].iov_base;
+		ioctl_cmd = elem.out_sg[2].iov_base;
+		switch (*ioctl_cmd) {
+			case CIOCGSESSION:
+				DEBUG(CIOCGSESSION);
+				session_key = elem.out_sg[3].iov_base;
+				session_op = elem.in_sg[0].iov_base;
+				host_return_val = elem.in_sg[1].iov_base;
+
+				session_op->key = (__u8  __user *) session_key;
+				*host_return_val = ioctl(*host_fd, CIOCGSESSION, session_op);
+				break;
+
+			case CIOCFSESSION:
+				DEBUG(CIOCFSESSION);
+				ses_id = elem.out_sg[3].iov_base;
+				host_return_val = elem.in_sg[0].iov_base;
+
+				*host_return_val = ioctl(*host_fd, CIOCFSESSION, ses_id);
+				break;
+
+			case CIOCCRYPT:
+				DEBUG(CIOCCRYPT);
+				crypt_op = elem.out_sg[3].iov_base;
+				src = elem.out_sg[4].iov_base;
+				iv = elem.out_sg[5].iov_base;
+				dst = elem.in_sg[0].iov_base;
+				host_return_val = elem.in_sg[1].iov_base;
+
+				crypt_op->src = src;
+				crypt_op->iv = iv;
+				crypt_op->dst = dst;
+				*host_return_val = ioctl(*host_fd, CIOCCRYPT, crypt_op);
+
+				break;
+		}
 
 		break;
 
