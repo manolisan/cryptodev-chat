@@ -144,10 +144,8 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	if (0 == 1){
 	if (test_crypto(fd))
 		return 1;
-	}
 
 	if (close(fd)) {
 		perror("close(fd)");
