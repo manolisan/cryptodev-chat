@@ -194,7 +194,7 @@ static long crypto_chrdev_ioctl(struct file *filp, unsigned int cmd,
 		unsigned int num_out, num_in, len;
 		unsigned int *syscall_type, *ioctl_cmd;
 		unsigned char *session_key, *src, *iv, *dst;
-		struct session_op session_op, *session_op_p;
+		struct session_op *session_op, *session_op_p;
 		struct crypt_op crypt_op, *crypt_op_p;
 		int *host_return_val, *host_fd;
 		__u32 ses_id;
@@ -204,6 +204,7 @@ static long crypto_chrdev_ioctl(struct file *filp, unsigned int cmd,
 		/**
 		* Allocate all data that will be sent to the host.
 		**/
+		printk("DEBUG: First memory allocation");
 		syscall_type = kzalloc(sizeof(*syscall_type), GFP_KERNEL);
 		*syscall_type = VIRTIO_CRYPTO_SYSCALL_IOCTL;
 		host_fd = kzalloc(sizeof(*host_fd), GFP_KERNEL);
@@ -232,18 +233,19 @@ static long crypto_chrdev_ioctl(struct file *filp, unsigned int cmd,
 			debug("CIOCGSESSION");
 
 			session_op_p = (struct session_op *) arg;
-			if (copy_from_user(&session_op, session_op_p, sizeof(struct session_op)) ){
+			session_op = kzalloc(sizeof(struct session_op), GFP_KERNEL);
+			if (copy_from_user(session_op, session_op_p, sizeof(struct session_op)) ){
 				return -EFAULT;
 			}
 
-			session_key = kmalloc(session_op.keylen, GFP_KERNEL);
+			session_key = kmalloc(session_op->keylen, GFP_KERNEL);
 			if (copy_from_user(session_key, session_op_p->key, session_op_p->keylen*sizeof(unsigned char)) ){
 				return -EFAULT;
 			}
 
-			sg_init_one(&session_key_sg, session_key, session_op.keylen);
+			sg_init_one(&session_key_sg, session_key, session_op->keylen);
 			sgs[num_out++] = &session_key_sg;
-			sg_init_one(&session_op_sg, &session_op, sizeof(session_op));
+			sg_init_one(&session_op_sg, session_op, sizeof(struct session_op));
 			sgs[num_out + num_in++] = &session_op_sg;
 			break;
 
