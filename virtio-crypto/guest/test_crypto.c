@@ -61,49 +61,50 @@ static int test_crypto(int cfd)
 		perror("ioctl(CIOCGSESSION)");
 		return 1;
 	}
+	printf("Session identifier: %d\n", sess.ses);
 
-	/**
-	 *  Encrypt data.in to data.encrypted
-	 **/
-	printf("Doing encryption of %d bytes of data...", DATA_SIZE);
-	fflush(stdout);
-	cryp.ses = sess.ses;
-	cryp.len = sizeof(data.in);
-	cryp.src = (__u8 __user *)data.in;
-	cryp.dst = (__u8 __user *)data.encrypted;
-	cryp.iv = (__u8 __user *)data.iv;
-	cryp.op = COP_ENCRYPT;
-	if (ioctl(cfd, CIOCCRYPT, &cryp)) {
-		perror("ioctl(CIOCCRYPT)");
-		return 1;
-	}
-	printf("[OK]\n");
+		/**
+		 *  Encrypt data.in to data.encrypted
+		 **/
+		printf("Doing encryption of %d bytes of data...", DATA_SIZE);
+		fflush(stdout);
+		cryp.ses = sess.ses;
+		cryp.len = sizeof(data.in);
+		cryp.src = (__u8 __user *)data.in;
+		cryp.dst = (__u8 __user *)data.encrypted;
+		cryp.iv = (__u8 __user *)data.iv;
+		cryp.op = COP_ENCRYPT;
+		if (ioctl(cfd, CIOCCRYPT, &cryp)) {
+			perror("ioctl(CIOCCRYPT)");
+			return 1;
+		}
+		printf("[OK]\n");
 
-	/**
-	 *  Decrypt data.encrypted to data.decrypted
-	 **/
-	printf("Doing decryption of %d bytes of data...", DATA_SIZE);
-	fflush(stdout);
-	cryp.src = (__u8 __user *)data.encrypted;
-	cryp.dst = (__u8 __user *)data.decrypted;
-	cryp.op = COP_DECRYPT;
-	if (ioctl(cfd, CIOCCRYPT, &cryp)) {
-		perror("ioctl(CIOCCRYPT)");
-		return 1;
-	}
-	printf("[OK]\n");
+		/**
+		 *  Decrypt data.encrypted to data.decrypted
+		 **/
+		printf("Doing decryption of %d bytes of data...", DATA_SIZE);
+		fflush(stdout);
+		cryp.src = (__u8 __user *)data.encrypted;
+		cryp.dst = (__u8 __user *)data.decrypted;
+		cryp.op = COP_DECRYPT;
+		if (ioctl(cfd, CIOCCRYPT, &cryp)) {
+			perror("ioctl(CIOCCRYPT)");
+			return 1;
+		}
+		printf("[OK]\n");
 
-	/**
-	 *  Verify the result
-	 **/
-	printf("Doing Verification of data...");
-	fflush(stdout);
-	if (memcmp(data.in, data.decrypted, sizeof(data.in)) != 0) {
-		printf(" Error\n");
-		return 1;
-	} else {
-		printf(" Success\n");
-	}
+		/**
+		 *  Verify the result
+		 **/
+		printf("Doing Verification of data...");
+		fflush(stdout);
+		if (memcmp(data.in, data.decrypted, sizeof(data.in)) != 0) {
+			printf(" Error\n");
+			return 1;
+		} else {
+			printf(" Success\n");
+		}
 
 	/**
 	 *  Finish crypto session

@@ -72,27 +72,23 @@ static void vq_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 		DEBUG("VIRTIO_CRYPTO_SYSCALL_TYPE_OPEN");
 		host_fd = elem.in_sg[0].iov_base;
 	  *host_fd = open("/dev/crypto", O_RDWR);
-		/*
+
 		if (*host_fd < 0) {
 			DEBUG("open(/dev/crypto)");
 			return;
 		}
-		*/
-		printf("OPEN: File descriptor: %d \n", *host_fd);
 
 		break;
 
 	case VIRTIO_CRYPTO_SYSCALL_TYPE_CLOSE:
 		DEBUG("VIRTIO_CRYPTO_SYSCALL_TYPE_CLOSE");
 		host_fd = elem.out_sg[1].iov_base;
-		printf("Close: File descriptor: %d \n", *host_fd);
-		close(*host_fd);
-		/*
-		if (close(*fd)) {
+
+		if (close(*host_fd)) {
 			DEBUG("close(fd)");
 			return;
 		}
-		*/
+
 		break;
 
 	case VIRTIO_CRYPTO_SYSCALL_TYPE_IOCTL:
@@ -131,7 +127,9 @@ static void vq_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 				crypt_op->iv = iv;
 				crypt_op->dst = dst;
 				*host_return_val = ioctl(*host_fd, CIOCCRYPT, crypt_op);
-
+				if (*host_return_val < 0){
+					perror("ioctl(CIOCCRYPT)");
+				}
 				break;
 		}
 
