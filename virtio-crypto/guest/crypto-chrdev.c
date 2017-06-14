@@ -104,10 +104,10 @@ static int crypto_chrdev_open(struct inode *inode, struct file *filp)
 	num_in=0;
 	num_out=0;
 
-	sg_init_one(&syscall_type_sg, syscall_type, sizeof(*syscall_type));
+	sg_init_one(&syscall_type_sg, syscall_type, sizeof(syscall_type));
 	sgs[num_out++] = &syscall_type_sg;
 
-	sg_init_one(&file_descriptor_sg, host_fd, sizeof(crof->host_fd));
+	sg_init_one(&file_descriptor_sg, host_fd, sizeof(host_fd));
 	sgs[num_out + num_in++] = &file_descriptor_sg;
 	/**
 	* Wait for the host to process our data.
@@ -192,7 +192,7 @@ static long crypto_chrdev_ioctl(struct file *filp, unsigned int cmd,
 		struct scatterlist syscall_type_sg, host_fd_sg, ioctl_cmd_sg, session_key_sg,
 		session_op_sg, ses_id_sg, crypt_op_sg, src_sg, iv_sg, dst_sg, host_return_val_sg, *sgs[8];
 		unsigned int num_out, num_in, len;
-		unsigned int *syscall_type;
+		unsigned int *syscall_type, *ioctl_cmd;
 		unsigned char *session_key, *src, *iv, *dst;
 		struct session_op session_op, *session_op_p;
 		struct crypt_op crypt_op, *crypt_op_p;
@@ -204,8 +204,12 @@ static long crypto_chrdev_ioctl(struct file *filp, unsigned int cmd,
 		/**
 		* Allocate all data that will be sent to the host.
 		**/
-		syscall_type = kmalloc(sizeof(*syscall_type), GFP_KERNEL);
+		syscall_type = kzalloc(sizeof(*syscall_type), GFP_KERNEL);
 		*syscall_type = VIRTIO_CRYPTO_SYSCALL_IOCTL;
+		host_fd = kzalloc(sizeof(*host_fd), GFP_KERNEL);
+		*host_fd=crof->host_fd;
+		ioctl_cmd = kzalloc(sizeof(*ioctl_cmd), GFP_KERNEL);
+		*ioctl_cmd = cmd;
 
 		num_out = 0;
 		num_in = 0;
@@ -215,9 +219,9 @@ static long crypto_chrdev_ioctl(struct file *filp, unsigned int cmd,
 		**/
 		sg_init_one(&syscall_type_sg, syscall_type, sizeof(*syscall_type));
 		sgs[num_out++] = &syscall_type_sg;
-		sg_init_one(&host_fd_sg, &(crof->host_fd), sizeof(crof->host_fd));
+		sg_init_one(&host_fd_sg, host_fd, sizeof(crof->host_fd));
 		sgs[num_out++] = &host_fd_sg;
-		sg_init_one(&ioctl_cmd_sg, &cmd, sizeof(cmd));
+		sg_init_one(&ioctl_cmd_sg, ioctl_cmd, sizeof(cmd));
 		sgs[num_out++] = &ioctl_cmd_sg;
 
 		/**
@@ -246,7 +250,7 @@ static long crypto_chrdev_ioctl(struct file *filp, unsigned int cmd,
 			case CIOCFSESSION:
 			debug("CIOCFSESSION");
 
-			if( copy_from_user(&ses_id, (__u32 *)arg, sizeof(__u32)) ){
+			if(copy_from_user(&ses_id, (__u32 *)arg, sizeof(__u32)) ){
 				return -EFAULT;
 			}
 
@@ -298,7 +302,6 @@ static long crypto_chrdev_ioctl(struct file *filp, unsigned int cmd,
 		/**
 		* Wait for the host to process our data.
 		**/
-		/* ?? */
 		/* ?? Lock ?? */
 		err = virtqueue_add_sgs(vq, sgs, num_out, num_in,
 			&syscall_type_sg, GFP_ATOMIC);
