@@ -30,6 +30,7 @@
 #include <readline/history.h>
 
 #include <pthread.h>
+#include <semaphore.h>
 
 #include "socket-common.h"
 #include <crypto/cryptodev.h>
@@ -40,6 +41,7 @@ int newsd;
 int encrypted=0;
 int no_client;
 pthread_t tid[MAX_CLIENTS];
+sem_t locks[MAX_CLIENTS];
 
 char addrstr[INET_ADDRSTRLEN];
 int sd;
@@ -116,6 +118,8 @@ int forward(int sd, int me){
 	int client;
 	for(client = 0; client<no_client; client++){
 		if (client == me) continue;
+
+		sem_wait(&locks[client]);
 		if(encrypted == 1){
 			encrypt(buf, size+sizeof(size));
 			if (insist_write(newsd_serve[client], buf, DATA_SIZE) != DATA_SIZE) {
@@ -128,6 +132,7 @@ int forward(int sd, int me){
 				exit(1);
 			}
 		}
+		sem_post(&locks[client]);
 	}
 
 
@@ -213,6 +218,8 @@ int main(int argc, char *argv[])
 		}
 
 		int client_id = no_client;
+
+		sem_init(&locks[no_client], 0, 1);
 		int err = pthread_create(&(tid[no_client]), NULL, &client_service, &client_id);
 	  if (err != 0)
 	     printf("\ncan't create thread :[%s]", strerror(err));
