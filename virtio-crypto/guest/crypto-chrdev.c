@@ -69,6 +69,7 @@ static int crypto_chrdev_open(struct inode *inode, struct file *filp)
 	int *host_fd;
 	struct scatterlist syscall_type_sg, file_descriptor_sg, *sgs[2];
 	unsigned int num_out, num_in;
+	unsigned long flags;
 
 	debug("Entering");
 	syscall_type = kzalloc(sizeof(*syscall_type), GFP_KERNEL);
@@ -113,11 +114,16 @@ static int crypto_chrdev_open(struct inode *inode, struct file *filp)
 	* Wait for the host to process our data.
 	**/
 	//LOCK?????????
+	
+	spin_lock_irqsave(&crdrvdata.lock, flags);
+
+	
 	err = virtqueue_add_sgs(crdev->vq, sgs, num_out, num_in, &syscall_type_sg, GFP_ATOMIC);
 	virtqueue_kick(crdev->vq);
 	while (virtqueue_get_buf(crdev->vq, &len) == NULL)
 	/* do nothing */;
 
+	spin_unlock_irqrestore(&crdrvdata.lock, flags);
 	/* If host failed to open() return -ENODEV. */
 	printk("Host fd is: %d \n", (int) crof->host_fd);
 	if (host_fd<0){
@@ -143,6 +149,7 @@ static int crypto_chrdev_release(struct inode *inode, struct file *filp)
 	int *host_fd;
 	struct scatterlist syscall_type_sg, file_descriptor_sg, *sgs[2];
 	unsigned int num_out, num_in;
+	unsigned long flags;
 
 	debug("Entering");
 	/**
@@ -165,11 +172,15 @@ static int crypto_chrdev_release(struct inode *inode, struct file *filp)
 	* Wait for the host to process our data.
 	**/
 	//LOCK???????????????????????????????????????????????????????????????
+	spin_lock_irqsave(&crdrvdata.lock, flags);
+
 	err = virtqueue_add_sgs(crdev->vq, sgs, num_out, num_in, &syscall_type_sg, GFP_ATOMIC);
 	virtqueue_kick(crdev->vq);
 
 	while (virtqueue_get_buf(crdev->vq, &len) == NULL)
 	/* do nothing */;
+
+	spin_unlock_irqrestore(&crdrvdata.lock, flags);
 
 	kfree(crof);
 	kfree(syscall_type);
